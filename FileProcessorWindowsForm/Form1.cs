@@ -37,14 +37,14 @@ namespace FileProcessorWindowsForm
                 listView1.Items.Add(item);
                 iconForFile = SystemIcons.WinLogo;
 
-                if(!imageList1.Images.ContainsKey(file.Extension))
+                if (!imageList1.Images.ContainsKey(file.Extension))
                 {
                     iconForFile = System.Drawing.Icon.ExtractAssociatedIcon(file.FullName);
                     imageList1.Images.Add(file.Extension, iconForFile);
                 }
 
                 item.ImageKey = file.Extension;
-                item.SubItems.Add((file.Length/1024) + " КБ");
+                item.SubItems.Add((file.Length / 1024) + " КБ");
                 item.SubItems.Add(file.LastWriteTime.ToString());
                 item.SubItems.Add(GetAttributes(file));
 
@@ -55,7 +55,7 @@ namespace FileProcessorWindowsForm
         private string GetAttributes(FileInfo fileInfo)
         {
             string attr = "";
-            
+
             if ((fileInfo.Attributes & FileAttributes.Hidden) != 0)
                 attr += "Спрятанный ";
             if ((fileInfo.Attributes & FileAttributes.ReadOnly) != 0)
@@ -64,7 +64,7 @@ namespace FileProcessorWindowsForm
                 attr += "Системный";
             else if ((fileInfo.Extension == ".dll"))
                 attr += "Расширение";
-            else if((fileInfo.Extension == ".exe"))
+            else if ((fileInfo.Extension == ".exe"))
                 attr += "Приложение";
             else attr += "Файл " + fileInfo.Extension;
             return attr;
@@ -106,11 +106,49 @@ namespace FileProcessorWindowsForm
         private void treeView1_BeforeExpand(object sender, TreeViewCancelEventArgs e)
         {
             treeView1.BeginUpdate();
-            foreach(TreeNode node in e.Node.Nodes) 
+            foreach (TreeNode node in e.Node.Nodes)
             {
                 AddDirs(node);
             }
             treeView1.EndUpdate();
+        }
+
+        private void listView1_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                ToolStripMenuItem[] items = new ToolStripMenuItem[] { new ToolStripMenuItem() { Name = "CopyItem", Text = "Копировать", }, new ToolStripMenuItem() { Name = "RemoveItem", Text = "Удалить" } };
+                listView1.ContextMenuStrip = new ContextMenuStrip();
+                listView1.ContextMenuStrip.Items.AddRange(items);
+                listView1.ContextMenuStrip.ItemClicked += ItemClick;
+                listView1.ContextMenuStrip.Show();
+            }
+        }
+
+        private void ItemClick(object sender, ToolStripItemClickedEventArgs e)
+        {
+            if (e.ClickedItem.Name == "CopyItem")
+                MessageBox.Show("Copy");
+            if (e.ClickedItem.Name == "RemoveItem")
+                MessageBox.Show("Delete");
+        }
+        
+        private void SelectedItemsDoubleClick(object sender, EventArgs e)
+        {
+            string currentDir = treeView1.SelectedNode.FullPath;
+            string selectedFile = listView1.SelectedItems[0].Text;
+
+            if (File.Exists(Path.Combine(currentDir, selectedFile)))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(currentDir + @"\" + selectedFile);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.StackTrace);
+                }
+            }
         }
     }
 }
