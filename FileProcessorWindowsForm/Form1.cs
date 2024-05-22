@@ -1,13 +1,14 @@
-
-
 using System.Diagnostics;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace FileProcessorWindowsForm
 {
     public partial class Form1 : Form
     {
         ImageList imageList1;
-        ListView.SelectedListViewItemCollection selectedItems;
+        ToolStripItem[] itemsForEmptyArea;
+        ToolStripItem[] itemsForListViewItems;
+        List<string> selectedItemsPath = new List<string>(), fileNameToPaste = new List<string>();
         public void ShowDrives()
         {
             treeView1.BeginUpdate();
@@ -93,6 +94,7 @@ namespace FileProcessorWindowsForm
                 node.Nodes.Add(treeNode);
             }
         }
+
         public Form1()
         {
             InitializeComponent();
@@ -101,23 +103,24 @@ namespace FileProcessorWindowsForm
         private void Form1_Load(object sender, EventArgs e)
         {
             ShowDrives();
+            itemsForEmptyArea = new ToolStripMenuItem[] { new ToolStripMenuItem() { Name = "OpenFile", Text = "Открыть файл" }, 
+                new ToolStripMenuItem() { Name = "PasteFile", Text = "Вставить", Enabled = false } };
+            itemsForListViewItems = new ToolStripMenuItem[] { new ToolStripMenuItem() { Name = "CopyItem", Text = "Копировать", }, 
+                new ToolStripMenuItem() { Name = "RemoveItem", Text = "Удалить" } };
+            listView1.ContextMenuStrip = new ContextMenuStrip();
             listView1.MouseUp += (s, e) =>
             {
                 if (listView1.SelectedItems.Count == 0 && e.Button == MouseButtons.Right)
                 {
-                    ToolStripMenuItem[] items;
-                    items = new ToolStripMenuItem[] { new ToolStripMenuItem() { Name = "OpenFile", Text = "Открыть файл" }, new ToolStripMenuItem() { Name = "PasteFile", Text = "Вставить", Enabled = false } };
                     listView1.ContextMenuStrip = new ContextMenuStrip();
-                    listView1.ContextMenuStrip.Items.AddRange(items);
+                    listView1.ContextMenuStrip.Items.AddRange(itemsForEmptyArea);
                     listView1.ContextMenuStrip.ItemClicked += ItemClick;
                     listView1.ContextMenuStrip.Show();
                 }
                 else if(e.Button == MouseButtons.Right)
                 {
-                    ToolStripMenuItem[] items;
-                    items = new ToolStripMenuItem[] { new ToolStripMenuItem() { Name = "CopyItem", Text = "Копировать", }, new ToolStripMenuItem() { Name = "RemoveItem", Text = "Удалить" } };
                     listView1.ContextMenuStrip = new ContextMenuStrip();
-                    listView1.ContextMenuStrip.Items.AddRange(items);
+                    listView1.ContextMenuStrip.Items.AddRange(itemsForListViewItems);
                     listView1.ContextMenuStrip.ItemClicked += ItemClick;
                     listView1.ContextMenuStrip.Show();
                 }
@@ -139,22 +142,54 @@ namespace FileProcessorWindowsForm
             treeView1.EndUpdate();
         }
 
-
         private void ItemClick(object sender, ToolStripItemClickedEventArgs e)
         {
             if (e.ClickedItem.Name == "CopyItem")
             {
-                selectedItems = listView1.SelectedItems;
-                listView1.ContextMenuStrip.Items.Find("PasteFile", false)[0].Enabled = true;
+                foreach (ListViewItem item in listView1.SelectedItems)
+                {
+                    selectedItemsPath.Add(treeView1.SelectedNode.FullPath);
+                    fileNameToPaste.Add(item.Text);
+                }
+                itemsForEmptyArea[1].Enabled = true;
             }
             if(e.ClickedItem.Name == "PasteFile")
             {
-                ItemsPaste(selectedItems);
+                for(int i = 0; i < selectedItemsPath.Count;i++)
+                {
+                    try
+                    {
+                        File.Copy(selectedItemsPath[i] + @"\" + fileNameToPaste[i], treeView1.SelectedNode.FullPath +@"\"+ Path.GetFileName(fileNameToPaste[i]));
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.StackTrace);
+                    }
+                }
+                itemsForEmptyArea[1].Enabled = false;
+                selectedItemsPath.Clear();
+                fileNameToPaste.Clear();
+                ShowFileNames();
             }
             if (e.ClickedItem.Name == "RemoveItem")
-                MessageBox.Show("Delete");
+            {
+                foreach(ListViewItem item in listView1.SelectedItems)
+                {
+                    try
+                    {
+                        File.Delete(treeView1.SelectedNode.FullPath + @"\" + item.Text);
+                        ShowFileNames();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.StackTrace);
+                    }
+                }
+            }
+                
             if (e.ClickedItem.Name == "OpenFile")
             {
+                listView1.ContextMenuStrip.Visible = false;
                 OpenFileDialog dialog = new OpenFileDialog();
                 if(dialog.ShowDialog() == DialogResult.OK)
                 {
@@ -173,23 +208,6 @@ namespace FileProcessorWindowsForm
             }
         }
 
-        private void ItemsPaste(ListView.SelectedListViewItemCollection items)
-        {
-            foreach (var item in items)
-            {
-                DirectoryInfo di = new DirectoryInfo(treeView1.SelectedNode.FullPath);
-
-                try
-                {
-                    File.Copy(item.ToString(), di.FullName + Path.GetFileName(item.ToString()));
-                }
-                catch 
-                {
-                    MessageBox.Show("ERRROOR");
-                }
-            }
-        }
-        
         private void SelectedItemsDoubleClick(object sender, EventArgs e)
         {
             string currentDir = treeView1.SelectedNode.FullPath;
@@ -201,7 +219,7 @@ namespace FileProcessorWindowsForm
                 {
                     Process process = new Process();
                     process.StartInfo.FileName = currentDir + @"\" + selectedFile;
-                    process.StartInfo.UseShellExecute= true;
+                    process.StartInfo.UseShellExecute = true;
                     process.Start();
                 }
                 catch (Exception ex)
@@ -210,7 +228,5 @@ namespace FileProcessorWindowsForm
                 }
             }
         }
-
-
     }
 }
