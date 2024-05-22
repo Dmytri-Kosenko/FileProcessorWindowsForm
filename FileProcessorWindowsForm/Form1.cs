@@ -1,8 +1,13 @@
+
+
+using System.Diagnostics;
+
 namespace FileProcessorWindowsForm
 {
     public partial class Form1 : Form
     {
         ImageList imageList1;
+        ListView.SelectedListViewItemCollection selectedItems;
         public void ShowDrives()
         {
             treeView1.BeginUpdate();
@@ -96,6 +101,27 @@ namespace FileProcessorWindowsForm
         private void Form1_Load(object sender, EventArgs e)
         {
             ShowDrives();
+            listView1.MouseUp += (s, e) =>
+            {
+                if (listView1.SelectedItems.Count == 0 && e.Button == MouseButtons.Right)
+                {
+                    ToolStripMenuItem[] items;
+                    items = new ToolStripMenuItem[] { new ToolStripMenuItem() { Name = "OpenFile", Text = "Открыть файл" }, new ToolStripMenuItem() { Name = "PasteFile", Text = "Вставить", Enabled = false } };
+                    listView1.ContextMenuStrip = new ContextMenuStrip();
+                    listView1.ContextMenuStrip.Items.AddRange(items);
+                    listView1.ContextMenuStrip.ItemClicked += ItemClick;
+                    listView1.ContextMenuStrip.Show();
+                }
+                else if(e.Button == MouseButtons.Right)
+                {
+                    ToolStripMenuItem[] items;
+                    items = new ToolStripMenuItem[] { new ToolStripMenuItem() { Name = "CopyItem", Text = "Копировать", }, new ToolStripMenuItem() { Name = "RemoveItem", Text = "Удалить" } };
+                    listView1.ContextMenuStrip = new ContextMenuStrip();
+                    listView1.ContextMenuStrip.Items.AddRange(items);
+                    listView1.ContextMenuStrip.ItemClicked += ItemClick;
+                    listView1.ContextMenuStrip.Show();
+                }
+            };
         }
 
         private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)
@@ -113,24 +139,55 @@ namespace FileProcessorWindowsForm
             treeView1.EndUpdate();
         }
 
-        private void listView1_MouseClick(object sender, MouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Right)
-            {
-                ToolStripMenuItem[] items = new ToolStripMenuItem[] { new ToolStripMenuItem() { Name = "CopyItem", Text = "Копировать", }, new ToolStripMenuItem() { Name = "RemoveItem", Text = "Удалить" } };
-                listView1.ContextMenuStrip = new ContextMenuStrip();
-                listView1.ContextMenuStrip.Items.AddRange(items);
-                listView1.ContextMenuStrip.ItemClicked += ItemClick;
-                listView1.ContextMenuStrip.Show();
-            }
-        }
 
         private void ItemClick(object sender, ToolStripItemClickedEventArgs e)
         {
             if (e.ClickedItem.Name == "CopyItem")
-                MessageBox.Show("Copy");
+            {
+                selectedItems = listView1.SelectedItems;
+                listView1.ContextMenuStrip.Items.Find("PasteFile", false)[0].Enabled = true;
+            }
+            if(e.ClickedItem.Name == "PasteFile")
+            {
+                ItemsPaste(selectedItems);
+            }
             if (e.ClickedItem.Name == "RemoveItem")
                 MessageBox.Show("Delete");
+            if (e.ClickedItem.Name == "OpenFile")
+            {
+                OpenFileDialog dialog = new OpenFileDialog();
+                if(dialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        Process process = new Process();
+                        process.StartInfo.FileName = dialog.FileName;
+                        process.StartInfo.UseShellExecute = true;
+                        process.Start();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.StackTrace);
+                    }
+                }
+            }
+        }
+
+        private void ItemsPaste(ListView.SelectedListViewItemCollection items)
+        {
+            foreach (var item in items)
+            {
+                DirectoryInfo di = new DirectoryInfo(treeView1.SelectedNode.FullPath);
+
+                try
+                {
+                    File.Copy(item.ToString(), di.FullName + Path.GetFileName(item.ToString()));
+                }
+                catch 
+                {
+                    MessageBox.Show("ERRROOR");
+                }
+            }
         }
         
         private void SelectedItemsDoubleClick(object sender, EventArgs e)
@@ -142,7 +199,10 @@ namespace FileProcessorWindowsForm
             {
                 try
                 {
-                    System.Diagnostics.Process.Start(currentDir + @"\" + selectedFile);
+                    Process process = new Process();
+                    process.StartInfo.FileName = currentDir + @"\" + selectedFile;
+                    process.StartInfo.UseShellExecute= true;
+                    process.Start();
                 }
                 catch (Exception ex)
                 {
@@ -150,5 +210,7 @@ namespace FileProcessorWindowsForm
                 }
             }
         }
+
+
     }
 }
